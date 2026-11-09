@@ -1,0 +1,210 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { Heart, MessageCircle, Trash2 } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { db, auth } from "@/lib/firebase";
+import { doc, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, deleteDoc } from "firebase/firestore";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function PinCard({ pin }: { pin: any }) {
+  const [liked, setLiked] = useState(false);
+  const [showComment, setShowComment] = useState(false);
+  const [comment, setComment] = useState("");
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      if (!auth.currentUser) return;
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+        const userData = userDoc.data();
+
+        const likedPins = userData?.likedPins || [];
+        setLiked(likedPins.includes(pin.id));
+
+        const ownerId = pin.ownerId || pin.userId;
+        const following = userData?.following || [];
+        if (ownerId) {
+          setIsFollowing(following.includes(ownerId));
+        }
+      } catch (e) {
+        console.error("Error checking status:", e);
+      }
+    };
+    checkUserStatus();
+  }, [pin]);
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!auth.currentUser) {
+      alert("Please sign in to like pins!");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          likedPins: [pin.id],
+          following: [],
+          savedPins: []
+        }, { merge: true });
+        setLiked(true);
+      } else {
+        if (liked) {
+          await updateDoc(userRef, {
+            likedPins: arrayRemove(pin.id)
+          });
+          setLiked(false);
+        } else {
+          await updateDoc(userRef, {
+            likedPins: arrayUnion(pin.id)
+          });
+          setLiked(true);
+        }
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+    }
+  };
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!auth.currentUser) {
+      alert("Please sign in to save pins!");
+      return;
+    }
+
+    try {
+      const userSavedRef = doc(db, "users", auth.currentUser.uid);
+      await setDoc(userSavedRef, {
+        savedPins: arrayUnion(pin.id)
+      }, { merge: true });
+      alert("Saved to your collection!");
+    } catch (error) {
+      console.error("Error saving pin:", error);
+      alert("Failed to save pin.");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!auth.currentUser) return;
+
+    const ownerId = pin.ownerId || pin.userId;
+    if (ownerId !== auth.currentUser.uid) {
+      alert("You can only delete your own posts!");
+      return;
+    }
+
+    if (confirm("Are you sure you want to delete this pin? This action cannot be undone.")) {
+      try {
+        await deleteDoc(doc(db, "posts", pin.id));
+        alert("Post deleted successfully.");
+        // The home feed will update automatically if using onSnapshot,
+        // but since we use getDocs, we suggest a page refresh or handling state.
+        window.location.reload();
+      } catch (error) {
+        console.error("Delete error:", error);
+        alert("Failed to delete post.");
+      }
+    }
+  };
+
+  const handleComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!// comment.trim()) return;
+    alert(`Comment posted to ${pin.title}: ${comment}`);
+    setComment("");
+    setShowComment(false);
+  };
+
+  return (
+    <div className="relative group break-inside-avoid mb-4 rounded-2xl overflow-hidden cursor-zoom-in transition-all duration-300 hover:shadow-xl bg-gray-50 dark:bg-zinc-900">
+      <div className="relative overflow-hidden">
+        <img
+          src={pin.imageURL || pin.imageData}
+          alt={pin.title}
+          className="w-full h-auto block transition-transform duration-500 group-hover:scale-105"
+          style={{ aspectRatio: '2/3', objectFit: 'cover' }}
+        />
+        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+          <div className="flex justify-end gap-2">
+            { (pin.ownerId || pin.userId) === auth?.currentUser?.uid && (
+              <button
+                onClick={handleDelete}
+                className="bg-zinc-800 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                title="Delete Post"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              className="bg-red-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-red-700 transition-colors shadow-lg"
+            >
+              Save
+            </button>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <button
+                onClick={handleLike}
+                className="bg-white/90 p-2 rounded-full text-black hover:bg-white transition-all backdrop-blur-sm"
+              >
+                <Heart className={cn("w-4 h-4", liked ? "fill-red-500 text-red-500" : "")} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowComment(!showComment); }}
+                className="bg-white/90 p-2 rounded-full text-black hover:bg-white transition-all backdrop-blur-sm"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-black backdrop-blur-sm">
+              {pin.creator || pin.username || "Unknown"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showComment && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-zinc-800 p-3 border-t border-gray-100 dark:border-zinc-700 animate-in slide-in-from-bottom-2 z-20">
+          <form onSubmit={handleComment} className="flex gap-2">
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 text-xs p-2 bg-gray-100 dark:bg-zinc-700 rounded-lg outline-none text-black dark:text-white"
+            />
+            <button type="submit" className="text-xs font-bold text-red-600 px-2">Post</button>
+          </form>
+        </div>
+      )}
+
+      <div className="p-3">
+        <p className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">{pin.title || "Untitled"}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function MasonryFeed({ pins }: { pins: any[] }) {
+  return (
+    <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 w-full px-4 md:px-0">
+      {pins.map((pin, idx) => (
+        <PinCard key={idx} pin={pin} />
+      ))}
+    </div>
+  );
+}
