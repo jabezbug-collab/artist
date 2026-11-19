@@ -1,9 +1,14 @@
+
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "artist",
   "compatibility_date": "2026-11-18",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public",
+    "no_handle_cross_request_promise_resolution"
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -16,5 +21,8 @@
   ],
   "images": {
     "binding": "IMAGES"
+  },
+  "observability": {
+    "enabled": true
   }
 }
