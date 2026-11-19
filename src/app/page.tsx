@@ -7,8 +7,19 @@ import MasonryFeed from "@/components/MasonryFeed";
 import Sidebar from "@/components/Sidebar";
 import { Search } from "lucide-react";
 
+type Pin = {
+  id: string;
+  title?: string;
+  description?: string;
+  creator?: string;
+  username?: string;
+  // allow any other fields your posts have (imageUrl, createdAt, etc.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+};
+
 export default function Home() {
-  const [pins, setPins] = useState<any[]>([]);
+  const [pins, setPins] = useState<Pin[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -20,9 +31,9 @@ export default function Home() {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
         const querySnapshot = await getDocs(q);
 
-        let pinsData = querySnapshot.docs.map(doc => ({
+        let pinsData: Pin[] = querySnapshot.docs.map(doc => ({
+          ...(doc.data() as Omit<Pin, "id">),
           id: doc.id,
-          ...doc.data()
         }));
 
         // Apply search filter client-side
@@ -71,7 +82,7 @@ export default function Home() {
         <div className="p-6">
           {searchQuery && (
             <div className="mb-6">
-              <h2 className="text-xl font-semibold">Search results for "{searchQuery}"</h2>
+              <h2 className="text-xl font-semibold">Search results for &quot;{searchQuery}&quot;</h2>
               <p className="text-sm text-zinc-500">{pins.length} results found</p>
             </div>
           )}
@@ -87,7 +98,7 @@ export default function Home() {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <Search className="w-12 h-12 text-zinc-800 mb-4" />
-              <p className="text-zinc-500">No results found for "{searchQuery}"</p>
+              <p className="text-zinc-500">No results found for &quot;{searchQuery}&quot;</p>
               <p className="text-sm text-zinc-600">Try different keywords or a different user</p>
             </div>
           )}

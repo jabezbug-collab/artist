@@ -13,16 +13,24 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+type UserData = {
+  displayName?: string;
+  bio?: string;
+  photoURL?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+};
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [loading, setLoading] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
       if (auth.currentUser) {
         const docSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-        if (docSnap.exists()) setUserData(docSnap.data());
+        if (docSnap.exists()) setUserData(docSnap.data() as UserData);
       }
     };
     fetchUserData();
@@ -33,7 +41,7 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       await updateDoc(doc(db, "users", auth.currentUser.uid), { [field]: value });
-      setUserData(prev => ({ ...prev, [field]: value }));
+      setUserData((prev: UserData | null) => ({ ...(prev ?? {}), [field]: value }));
     } catch (e) {
       console.error(e);
     } finally {
@@ -66,18 +74,18 @@ export default function SettingsPage() {
                       onChange={(e) => updateProfile("displayName", e.target.value)}
                       className="flex-1 p-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-500"
                     />
-                  </div >
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="text-xs text-gray-500 dark:text-zinc-400 uppercase font-semibold">Email</span>
                   <span className="text-sm">{auth.currentUser?.email}</span>
                 </div>
-              </div >
+              </div>
             </section>
 
             <section className="p-6 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 transition-colors">
               <h3 className="font-bold mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> Security & Privacy
+                <ShieldCheck className="w-4 h-4" /> Security &amp; Privacy
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-2">
@@ -88,9 +96,9 @@ export default function SettingsPage() {
                   <span className="text-sm">Two-Factor Authentication</span>
                   <span className="text-xs bg-gray-200 dark:bg-zinc-700 px-2 py-1 rounded">Off</span>
                 </div>
-              </div >
+              </div>
             </section>
-          </div >
+          </div>
         </div>
       </main>
     </div>
