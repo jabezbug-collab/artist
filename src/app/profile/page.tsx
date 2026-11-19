@@ -9,10 +9,19 @@ import { doc, getDoc, collection, query, where, getDocs, orderBy, updateDoc } fr
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import MasonryFeed from "@/components/MasonryFeed";
 
+type Profile = {
+  displayName?: string;
+  bio?: string;
+  photoURL?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+};
+
 function ProfileContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('id');
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +40,7 @@ function ProfileContent() {
       try {
         const userDoc = await getDoc(doc(db, "users", targetUserId));
         if (userDoc.exists()) {
-          setProfile(userDoc.data());
+          setProfile(userDoc.data() as Profile);
         }
 
         // BASED ON YOUR DATABASE LOG: The field is exactly "userId"
@@ -88,7 +97,7 @@ function ProfileContent() {
                 await updateDoc(doc(db, "users", currentUserId), {
                   photoURL: url
                 });
-                setProfile(prev => ({ ...prev, photoURL: url }));
+                setProfile((prev: Profile | null) => ({ ...(prev ?? {}), photoURL: url }));
                 alert("Profile picture updated!");
               } catch (err) {
                 console.error(err);
